@@ -55,6 +55,7 @@ def pack():
     """ (1) Pack source code and send to remote server """
     # Alternative: Use fab_project.upload
     release_path = env.x.remote_path + '/tmp/%s_release.tgz' % env.x.app
+    # To get UID: remote_uid = run('id -u')
     with _Temp(delete=False, suffix='.tgz') as tmp:
         local('tar cf {temp} src config'.format(temp=tmp.name))
         put(tmp.name, release_path)
@@ -65,7 +66,8 @@ def pack():
             run('rm -Rf config')
         if files.exists('src'):
             run('mv src rollback')
-        run('tar xf {release}'.format(release=release_path))
+        run('tar --extract --no-same-owner --preserve-permissions --file {release}'\
+            .format(release=release_path))
         run('rm ' + release_path)
 
 @with_root
@@ -148,9 +150,9 @@ def up_nginx():
     run('nginx -t && systemctl reload nginx.service')
 
 @with_root
-def restart_nginx():
-    # PITFALL: first start should be a restart, not reload
-    run('nginx -t && systemctl restart nginx.service')
+def nginx(action='restart'):
+    # PITFALL: first start must be a restart, not reload
+    run('nginx -t && systemctl ' + action + ' nginx.service')
 
 def find_files(directory, patterns):
     for root, dirs, files in os.walk(directory):
