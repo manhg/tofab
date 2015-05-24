@@ -30,9 +30,8 @@ def pwd(base_file):
     _pwd = os.path.dirname(base_file)
     os.chdir(_pwd)
 
-def with_root(f):
+def with_root():
     env.user = 'root'
-    return f
 
 @contextlib.contextmanager
 def on_remote(path=''):
@@ -51,13 +50,21 @@ def up_tokit():
         run('git fetch')
         run('git reset --hard origin/master')
 
+def sync(dirs=None):
+    if dirs:
+        dirs = dirs.split(',')
+    else:
+        dirs = ['config', 'src', 'doc']
+    for d in dirs:
+        fab_project.rsync_project(remote_dir=env.x.remote_path, local_dir=d)
+
 def pack():
     """ (1) Pack source code and send to remote server """
     # Alternative: Use fab_project.upload
     release_path = env.x.remote_path + '/tmp/%s_release.tgz' % env.x.app
     # To get UID: remote_uid = run('id -u')
     with _Temp(delete=False, suffix='.tgz') as tmp:
-        local('tar cf {temp} src config'.format(temp=tmp.name))
+        local('tar cf {temp} src config doc'.format(temp=tmp.name))
         put(tmp.name, release_path)
     with on_remote():
         if files.exists('rollback'):
@@ -70,9 +77,9 @@ def pack():
             .format(release=release_path))
         run('rm ' + release_path)
 
-@with_root
 def backend(action='restart'):
     """ (3) Start services """
+    with_root()
     systemd_reload()
     for instance in range(env.x.n_instances):
         run('systemctl {action} {app}@{port}.service'.format(
@@ -81,9 +88,9 @@ def backend(action='restart'):
             port=env.x.base_port + instance))
         time.sleep(env.x.wait)
 
-@with_root
 def config():
     """ (3) Link configs """
+    with_root()
     with on_remote():
         # TODO sym link is better
         for instance in range(env.x.n_instances):
@@ -101,10 +108,11 @@ def rollback():
 
 def deploy():
     static_link()
-    pack()
+    doc_gen()
+    sync()
     requirements()
-    static_copy()
     backend('restart')
+    static_copy()
 
 def requirements():
     """ (2) Update dependancies """
@@ -125,12 +133,13 @@ def setup():
         run('mkdir -p {tmp,shared,src}')
 
 def static_copy():
-    env.user = 'root'
+    with_root()
     run('mkdir -p /var/www/{app}'.format(app=env.x.app))
-    run('cp -Lr {path}/static /var/www/{app}/'.format(path=env.x.remote_path, app=env.x.app))
+    run('cp -R {path}/src/static /var/www/{app}/'.format(path=env.x.remote_path, app=env.x.app))
+    run('chown -R nginx /var/www/{app}/'.format(path=env.x.remote_path, app=env.x.app))
 
-@with_root
 def systemd_reload():
+    with_root()
     run('systemctl daemon-reload')
 
 def up_file(name):
@@ -138,19 +147,20 @@ def up_file(name):
     rel = os.path.relpath(name, PWD)
     print(put(name, os.path.join(env.x.remote_path, rel)))
 
-@with_root
 def up_python():
+    with_root()
     backend('restart')
 
-@with_root
 def up_nginx():
     # Pitfall
+    with_root()
     config()
     systemd_reload()
     run('nginx -t && systemctl reload nginx.service')
 
-@with_root
+
 def nginx(action='restart'):
+    with_root()
     # PITFALL: first start must be a restart, not reload
     run('nginx -t && systemctl ' + action + ' nginx.service')
 

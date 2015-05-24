@@ -1,6 +1,6 @@
 from distutils.core import setup
 # Thanks to http://peterdowns.com/posts/first-time-with-pypi.html
-pkg_version = '0.0.1'
+pkg_version = '0.0.2'
 setup(
     name = 'tofab',
     packages = ['tofab'],
