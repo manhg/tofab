@@ -15,6 +15,7 @@ class _X:
     n_instances= 2
     remote_path= '/home/'
     wait= 3
+    excludes=('.*', 'tmp')
 env.x = _X()
 
 import datetime
@@ -56,7 +57,7 @@ def sync(dirs=None):
     else:
         dirs = ['config', 'src', 'doc']
     for d in dirs:
-        fab_project.rsync_project(remote_dir=env.x.remote_path, local_dir=d)
+        fab_project.rsync_project(remote_dir=env.x.remote_path, local_dir=d, exclude=env.x.excludes)
 
 def pack():
     """ (1) Pack source code and send to remote server """
