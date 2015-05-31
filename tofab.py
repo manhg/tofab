@@ -15,7 +15,7 @@ class _X:
     n_instances= 2
     remote_path= '/home/'
     wait= 3
-    excludes=('.*', 'tmp')
+    excludes=('.*', 'tmp', '__pycache__', '*.pyc', 'upload', 'cache')
 env.x = _X()
 
 import datetime
@@ -191,10 +191,12 @@ def doc():
         local('cd _build/html && python3 -m http.server 7359 >/dev/null 2>&1 &')
         local('open http://localhost:7359/')
 
-def pg_dump_schema():
+def pg_dump_schema(db=None):
     import getpass
     local_username = getpass.getuser()
-    local('pg_dump -s pokersu > config/schema.sql')
+    if not db:
+        db = env.x.app
+    local('pg_dump -s %s  > config/schema.sql' % db)
     local('sed -i s/{local}/{remote}/g config/schema.sql'.format(local=local_username, remote=env.x.app))
 
 def pg_sync_schema():
