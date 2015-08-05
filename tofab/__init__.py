@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 """
 Conventions:
 
@@ -133,6 +134,14 @@ def setup(public_key='~/.ssh/id_rsa.pub'):
     put(public_key, '/home/%s/.ssh/authorized_keys' % env.x.app)
     run('chown %s -R /home/%s' % (env.x.app, env.x.app))
     run('chmod 700 /home/%s' % env.x.app)
+
+
+def authorize_key(key=None):
+    """ Add an user to access server """
+    if key:
+        run('cat "%s">> /home/%s/.ssh/authorized_keys' % (key, env.x.app))
+    else:
+        print("Please provide a SSH public key")
 
 def static_copy():
     with_root()
