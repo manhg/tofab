@@ -124,14 +124,15 @@ def requirements():
             run('pip3 install --upgrade -r requirements.txt')
             # TODO update DB
 
-def setup():
-    """ (0) Init """
-    # adduser
-    # su
-    # ssh-keygen
-    # authorized_keys
-    with on_remote():
-        run('mkdir -p {tmp,shared,src}')
+def setup(public_key='~/.ssh/id_rsa.pub'):
+    """ (0) Create user, add SSH key, create folders """
+    env.user = 'root'
+    run('useradd %s' % env.x.app)
+    run('mkdir -p /home/%s/{.ssh,tmp,shared,src}' % env.x.app)
+    run('ssh-keygen -b 2048 -t rsa -f /home/%s/.ssh/id_rsa -q -N ""' % env.x.app)
+    put(public_key, '/home/%s/.ssh/authorized_keys' % env.x.app)
+    run('chown %s -R /home/%s' % (env.x.app, env.x.app))
+    run('chmod 700 /home/%s' % env.x.app)
 
 def static_copy():
     with_root()
