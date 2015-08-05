@@ -4,8 +4,7 @@ This is a set of fabric utils for deploy multi reserved-proxy servers, with syst
 
 Notes:
 * Ensure you have systemd in nginx
-* Create an Linux user (able to login) on server, setup neccessary SSH keys.
-* This doesn't use sudo. It switch to root when need permission. So, be sure to add SSH public key for root account.
+* This doesn't use sudo. It switch to root when need permission. So, be sure to add SSH public key for root account on remote server.
 * This uses ``rsync``, not ``git`` to deploy. Any files under current project folder will be upload. 
 To keep some private, overwrite ``env.x.excludes`` options with list of exclude patterns.
 
@@ -28,7 +27,7 @@ env.port = 9622
 
 Commands:
 ```
-# Setup git folder
+# Setup user, folders
 fab setup
 
 # Deploy
