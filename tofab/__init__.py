@@ -250,29 +250,27 @@ def pg_dump_schema(db=None):
 def pg_up_schema():
     with _Temp(delete=False, suffix='.dat') as tmp:
         local(
-            """
-            pg_dump --schema-only
-            --no-owner --no-privileges
-            --format=c --compress=9
-            --file={temp} {db}
-            """.format(temp=tmp.name, db=env.x.app))
+            ("pg_dump --schema-only "
+            "--no-owner --no-acl --no-privileges "
+            "--format=c --compress=9 "
+            "--file={temp} {db} ")
+            .format(temp=tmp.name, db=env.x.app))
         remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
-        run('pg_restore -d {app} --role={app} {sql}'.format(sql=remote_sql, app=env.x.app))
+        run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
 
 
 def pg_up_data():
     with _Temp(delete=False, suffix='.dat') as tmp:
         local(
-            """
-            pg_dump --data-only
-            --no-owner --no-privileges
-            --format=c --compress=9
-            --compress=9 --file={temp} {db}
-            """.format(temp=tmp.name, db=env.x.app))
+            ("pg_dump --data-only "
+            "--no-owner --no-acl --no-privileges "
+            "--format=c --compress=9 "
+            "--file={temp} {db} ")
+            .format(temp=tmp.name, db=env.x.app))
         remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
-        run('pg_restore -d {app} --role={app} {sql}'.format(sql=remote_sql, app=env.x.app))
+        run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
 
 
 def pg_setup():
@@ -324,3 +322,38 @@ def static_link():
     with fab_context.lcd(link_dir):
         # Remove all broken links
         local('find -xtype l -delete')
+
+
+"""
+[Service]
+Type=oneshot
+WorkingDirectory=/var/backup/%i
+ExecStart=/bin/bash /var/backup/%i/backup.sh
+SyslogIdentifier=backup
+User=%i
+"""
+
+"""
+[Unit]
+Description=Daily backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+"""
+
+"""
+#!/bin/bash
+/usr/pgsql-9.4/bin/pg_dumpall | /bin/gzip \
+> /var/backup/postgres/$(date +"%d").sql.gz
+"""
+
+"""
+#!/bin/bash
+mysqldump -u backup --password= \
+--all-databases --single-transaction --quote-names \
+| /bin/gzip > /var/backup/mysql/$(date +"%d").sql.gz
+"""
