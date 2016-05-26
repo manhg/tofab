@@ -60,8 +60,8 @@ def on_remote(path=''):
 
 @contextlib.contextmanager
 def venv(inside=''):
-    with prefix('source {remote}/bin/activate'
-                .format(remote=env.x.remote_path)), cd(env.x.remote_path + inside):
+    with prefix('source {remote}/bin/activate' \
+                        .format(remote=env.x.remote_path)), cd(env.x.remote_path + inside):
         yield
 
 
@@ -96,7 +96,7 @@ def pack():
             run('rm -Rf config')
         if files.exists('src'):
             run('mv src rollback')
-        run('tar --extract --no-same-owner --preserve-permissions --file {release}'
+        run('tar --extract --no-same-owner --preserve-permissions --file {release}' \
             .format(release=release_path))
         run('rm ' + release_path)
 
@@ -120,9 +120,9 @@ def config():
         for instance in range(env.x.n_instances):
             service_file = "/etc/systemd/system/multi-user.target.wants/{app}@{port}.service" \
                 .format(app=env.x.app, port=env.x.base_port + instance)
-            run("ln -s -f {path}/config/app@.service {dest}"
+            run("ln -s -f {path}/config/app@.service {dest}" \
                 .format(path=env.x.remote_path, dest=service_file))
-        run('ln -s -f {path}/config/nginx.conf /etc/nginx/conf.d/{app}.conf'
+        run('ln -s -f {path}/config/nginx.conf /etc/nginx/conf.d/{app}.conf' \
             .format(app=env.x.app, path=env.x.remote_path))
 
 
@@ -162,16 +162,6 @@ def ssh_setup(public_key='~/.ssh/id_rsa.pub'):
     run('chmod 700 /home/%s' % env.x.app)
 
 
-def ssl_cert():
-    env.user = 'root'
-    cmd = (
-        'openssl req -nodes req -nodes -new -sha256 -newkey rsa:2048 '
-        '-keyout /etc/nginx/cert/{app}.key -out /etc/nginx/cert/{app}.csr '
-        '-subj "/C=JP/ST=/L=/O=S/OU=/CN="'
-    )
-    run(cmd.format(app=env.x.app))
-
-
 def authorize_key(key=None):
     """ Add an user to access server """
     if key:
@@ -193,8 +183,8 @@ def systemd_reload():
 
 
 def up_file(name):
-    file_dir = os.path.dirname(name)
-    rel = os.path.relpath(name, file_dir)
+    os.path.dirname(name)
+    rel = os.path.relpath(name, PWD)
     print(put(name, os.path.join(env.x.remote_path, rel)))
 
 
@@ -258,31 +248,29 @@ def pg_dump_schema(db=None):
 
 
 def pg_up_schema():
-    with _Temp(suffix='.dat') as tmp:
+    with _Temp(delete=False, suffix='.dat') as tmp:
         local(
             ("pg_dump --schema-only "
-             "--no-owner --no-acl --no-privileges "
-             "--format=c --compress=9 "
-             "--file={temp} {db} ")
+            "--no-owner --no-acl --no-privileges "
+            "--format=c --compress=9 "
+            "--file={temp} {db} ")
             .format(temp=tmp.name, db=env.x.app))
         remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
         run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
-        run('rm {sql}'.format(sql=remote_sql))
 
 
 def pg_up_data():
-    with _Temp(suffix='.dat') as tmp:
+    with _Temp(delete=False, suffix='.dat') as tmp:
         local(
             ("pg_dump --data-only "
-             "--no-owner --no-acl --no-privileges "
-             "--format=c --compress=9 "
-             "--file={temp} {db} ")
+            "--no-owner --no-acl --no-privileges "
+            "--format=c --compress=9 "
+            "--file={temp} {db} ")
             .format(temp=tmp.name, db=env.x.app))
-        remote_sql = '{path}/tmp/data.dat'.format(path=env.x.remote_path)
+        remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
         run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
-        run('rm {sql}'.format(sql=remote_sql))
 
 
 def pg_setup():
@@ -319,7 +307,7 @@ def pg_setup():
 def static_link():
     """ Collect static files by symbolic links """
     original_dir = 'src'
-    link_dir = 'static'
+    link_dir = 'public'
     for brick_path, basename in find_files(original_dir,[
         '*.css', '*.js', '*.tag'
         '*.png', '*.jpg', '*.gif', '*.json',
