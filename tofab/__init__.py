@@ -78,7 +78,11 @@ def sync(dirs=None):
     else:
         dirs = env.x.dirs
     for d in dirs:
-        fab_project.rsync_project(remote_dir=env.x.remote_path, local_dir=d, exclude=env.x.excludes)
+        fab_project.rsync_project(
+            remote_dir=env.x.remote_path, local_dir=d,
+            exclude=env.x.excludes,
+            extra_opts='--delete-after'
+        )
 
 
 def pack():
@@ -134,7 +138,6 @@ def rollback():
 
 def deploy():
     static_link()
-    doc_gen()
     sync()
     requirements()
     backend('restart')
@@ -155,7 +158,7 @@ def ssh_setup(public_key='~/.ssh/id_rsa.pub'):
     """ (0) Create user, add SSH key, create folders """
     env.user = 'root'
     run('useradd %s' % env.x.app)
-    run('mkdir -p /home/%s/{.ssh,tmp,shared,src}' % env.x.app)
+    run('mkdir -p /home/%s/{.ssh,tmp,shared,src,var}' % env.x.app)
     run('ssh-keygen -b 2048 -t rsa -f /home/%s/.ssh/id_rsa -q -N ""' % env.x.app)
     put(public_key, '/home/%s/.ssh/authorized_keys' % env.x.app)
     run('chown %s -R /home/%s' % (env.x.app, env.x.app))
@@ -222,7 +225,7 @@ def pack_config():
 def up_project():
     fab_project.rsync_project(
         remote_dir=env.x.remote_path, local_dir='src',
-        upload=True, extra_opts='-a', exclude=('__pycache__'))
+        upload=True, extra_opts='-a ', exclude=('__pycache__'))
 
 
 def doc_gen():
@@ -252,12 +255,11 @@ def pg_up_schema():
         local(
             ("pg_dump --schema-only "
             "--no-owner --no-acl --no-privileges "
-            "--format=c --compress=9 "
             "--file={temp} {db} ")
             .format(temp=tmp.name, db=env.x.app))
-        remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
+        remote_sql = '{path}/tmp/schema.sql'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
-        run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
+        run('psql {app} < {sql}'.format(sql=remote_sql, app=env.x.app))
 
 
 def pg_up_data():
@@ -265,12 +267,11 @@ def pg_up_data():
         local(
             ("pg_dump --data-only "
             "--no-owner --no-acl --no-privileges "
-            "--format=c --compress=9 "
             "--file={temp} {db} ")
             .format(temp=tmp.name, db=env.x.app))
-        remote_sql = '{path}/tmp/schema.dat'.format(path=env.x.remote_path)
+        remote_sql = '{path}/tmp/data.sql'.format(path=env.x.remote_path)
         put(tmp.name, remote_sql)
-        run('pg_restore --no-owner --no-acl -d {app} {sql}'.format(sql=remote_sql, app=env.x.app))
+        run('psql {app} < {sql}'.format(sql=remote_sql, app=env.x.app))
 
 
 def pg_setup():
